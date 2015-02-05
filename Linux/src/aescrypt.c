@@ -416,7 +416,7 @@ int encrypt_stream(FILE *infp, FILE *outfp, unsigned char* passwd, int passlen)
  *
  *  This function is called to decrypt the open data steam "infp".
  */
-int decrypt_stream(FILE *infp, FILE *outfp, unsigned char* passwd, int passlen)
+int decrypt_stream(FILE *infp, FILE *outfp, unsigned char* passwd, int passlen, int force)
 {
     aes_context aes_ctx;
     sha256_context sha_ctx;
@@ -611,7 +611,7 @@ int decrypt_stream(FILE *infp, FILE *outfp, unsigned char* passwd, int passlen)
             return -1;
         }
 
-        if (memcmp(digest, buffer, 32))
+        if (memcmp(digest, buffer, 32) && force == 0)
         {
             fprintf(stderr, "Error: Message has been altered or password is incorrect\n");
             return -1;
@@ -845,7 +845,7 @@ int decrypt_stream(FILE *infp, FILE *outfp, unsigned char* passwd, int passlen)
         memcpy(buffer2+31, tail, 1);
     }
 
-    if (memcmp(digest, buffer2, 32))
+    if (memcmp(digest, buffer2, 32) && force == 0)
     {
         if (aeshdr.version == 0x00)
         {
@@ -883,7 +883,7 @@ void usage(const char *progname)
         progname_real++;
     }
 
-    fprintf(stderr, "\nusage: %s {-e|-d} [ { -p <password> | -k <keyfile> } ] { [-o <output filename>] <file> | <file> [<file> ...] }\n\n",
+    fprintf(stderr, "\nusage: %s {-e|-d} [-f] [ { -p <password> | -k <keyfile> } ] { [-o <output filename>] <file> | <file> [<file> ...] }\n\n",
             progname_real);
 }
 
@@ -933,6 +933,7 @@ int main(int argc, char *argv[])
 {
     int rc=0;
     int passlen=0;
+    int force=0;
     FILE *infp = NULL;
     FILE *outfp = NULL;
     encryptmode_t mode=UNINIT;
@@ -946,10 +947,13 @@ int main(int argc, char *argv[])
     /* Initialize the output filename */
     outfile[0] = '\0';
     
-    while ((rc = getopt(argc, argv, "vhdek:p:o:")) != -1)
+    while ((rc = getopt(argc, argv, "fvhdek:p:o:")) != -1)
     {
         switch (rc)
         {
+	    case 'f':
+		force=1;
+		break;
             case 'h':
                 usage(argv[0]);
                 return 0;
@@ -1202,7 +1206,7 @@ int main(int argc, char *argv[])
              * should probably test against ascii, utf-16le, and utf-16be
              * encodings
              */
-            rc = decrypt_stream(infp, outfp, pass, passlen);
+            rc = decrypt_stream(infp, outfp, pass, passlen, force);
         }
         
         if ((infp != stdin) && (infp != NULL))
